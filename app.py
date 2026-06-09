@@ -19,7 +19,8 @@ from rembg import remove, new_session
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "changeme-set-in-env")
 
-APP_PASSWORD = os.environ.get("APP_PASSWORD") or "100Jtperhari@@"
+_env_pwd = os.environ.get("APP_PASSWORD", "")
+APP_PASSWORD = "100Jtperhari@@" if _env_pwd in ("", "***", None) else _env_pwd
 REMBG_MODEL = os.environ.get("REMBG_MODEL", "birefnet-portrait")
 MAX_FILES = int(os.environ.get("MAX_FILES", 20))
 MAX_FILE_MB = int(os.environ.get("MAX_FILE_SIZE_MB", 10))
