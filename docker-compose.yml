@@ -1,0 +1,22 @@
+services:
+  bg-remover:
+    build: .
+    container_name: bg-remover
+    restart: always
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./models:/root/.u2net
+      - /tmp/bgremover:/tmp/bgremover
+    environment:
+      - APP_PASSWORD=${APP_PASSWORD}
+      - SECRET_KEY=${SECRET_KEY}
+      - REMBG_MODEL=${REMBG_MODEL:-birefnet-portrait}
+      - MAX_FILES=${MAX_FILES:-20}
+      - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-10}
+      - SESSION_TTL_MINUTES=${SESSION_TTL_MINUTES:-60}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

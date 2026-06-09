@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BG Remover — Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        :root{--bg:#0d1117;--surface:#161b22;--border:#30363d;--accent:#7c5cfc;--accent-h:#6448e0;--text:#e6edf3;--muted:#8b949e;--error-bg:#3d1f1f;--error:#f87171;--radius:12px}
+        body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+        .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:40px 36px;width:100%;max-width:380px}
+        .logo{display:flex;align-items:center;gap:10px;margin-bottom:28px}
+        .logo-icon{width:36px;height:36px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center}
+        .logo-icon svg{width:20px;height:20px;fill:white}
+        .logo-text{font-size:17px;font-weight:600;letter-spacing:-.3px}
+        .logo-sub{font-size:12px;color:var(--muted);margin-top:1px}
+        h1{font-size:20px;font-weight:600;margin-bottom:6px;letter-spacing:-.4px}
+        .subtitle{font-size:13px;color:var(--muted);margin-bottom:28px;line-height:1.5}
+        label{display:block;font-size:13px;font-weight:500;color:var(--muted);margin-bottom:6px}
+        input[type="password"]{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;padding:10px 14px;outline:none;transition:border-color .15s}
+        input[type="password"]:focus{border-color:var(--accent)}
+        .error-box{background:var(--error-bg);border:1px solid var(--error);border-radius:8px;color:var(--error);font-size:13px;padding:10px 14px;margin-bottom:16px}
+        button[type="submit"]{width:100%;margin-top:16px;background:var(--accent);color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;font-family:inherit;padding:11px;cursor:pointer;transition:background .15s}
+        button[type="submit"]:hover{background:var(--accent-h)}
+        .footer{margin-top:24px;font-size:12px;color:var(--muted);text-align:center}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="logo">
+            <div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2z"/></svg></div>
+            <div><div class="logo-text">BG Remover</div><div class="logo-sub">Internal Tool — ZANEVA</div></div>
+        </div>
+        <h1>Masuk</h1>
+        <p class="subtitle">Masukkan password untuk mengakses tools hapus background.</p>
+        {% if error %}<div class="error-box">{{ error }}</div>{% endif %}
+        <form method="POST">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" placeholder="••••••••" autofocus required />
+            <button type="submit">Masuk →</button>
+        </form>
+        <div class="footer">Tools internal ZANEVA Holdings · Dilarang diakses publik</div>
+    </div>
+</body>
+</html>
