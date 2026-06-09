@@ -305,7 +305,7 @@
                 const card = document.createElement('div');
                 card.className = 'file-card';
                 const statusClass = f.status === 'done' ? 'done' : f.status === 'error' ? 'error' : 'pending';
-                const statusText = f.status === 'done' ? '✅ Selesai' : f.status === 'error' ? '❌ Error' : f.status === 'deleted' ? '🗑 Dihapus' : '⏳ Menunggu...';
+                const statusText = f.status === 'done' ? '✅ Selesai' : f.status === 'error' ? `❌ Error${f.error ? ': ' + f.error : ''}` : f.status === 'deleted' ? '🗑 Dihapus' : '⏳ Menunggu...';
                 const imgSrc = f.status === 'done' && f.outputId ? `/preview/${f.outputId}` : `/preview-input/${f.id}`;
                 card.innerHTML = `
                     <button class="btn-delete-card" onclick="deleteFile('${f.id}', ${i})" title="Hapus file">×</button>

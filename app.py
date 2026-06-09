@@ -126,10 +126,9 @@ def upload():
 @login_required
 def process(file_id):
     work = get_work_dir()
-    matches = list((work / "input").glob(f"{file_id}.*"))
-    if not matches:
+    in_path = work / "input" / file_id
+    if not in_path.exists():
         return jsonify({"error": "File tidak ditemukan."}), 404
-    in_path = matches[0]
     out_name = in_path.stem + "_nobg.png"
     out_path = work / "output" / out_name
     try:
@@ -150,14 +149,16 @@ def delete_file(file_id):
     work = get_work_dir()
     deleted = []
     # Try delete from input
-    for p in (work / "input").glob(f"{file_id}.*"):
-        p.unlink(missing_ok=True)
-        deleted.append(str(p.name))
-    # Try delete from output
-    out_id = file_id.replace(".", "_nobg.")
-    for p in (work / "output").glob(f"{file_id}*"):
-        p.unlink(missing_ok=True)
-        deleted.append(str(p.name))
+    in_path = work / "input" / file_id
+    if in_path.exists():
+        in_path.unlink()
+        deleted.append(file_id)
+    # Try delete from output (file_id stem + _nobg.png)
+    stem = Path(file_id).stem
+    out_path = work / "output" / f"{stem}_nobg.png"
+    if out_path.exists():
+        out_path.unlink()
+        deleted.append(out_path.name)
     if deleted:
         return jsonify({"status": "ok", "deleted": deleted})
     return jsonify({"error": "File tidak ditemukan."}), 404
@@ -198,10 +199,10 @@ def preview(output_id):
 @login_required
 def preview_input(file_id):
     work = get_work_dir()
-    matches = list((work / "input").glob(f"{file_id}.*"))
-    if not matches:
+    in_path = work / "input" / file_id
+    if not in_path.exists():
         abort(404)
-    return send_file(matches[0])
+    return send_file(in_path)
 
 @app.route("/download/<output_id>")
 @login_required
