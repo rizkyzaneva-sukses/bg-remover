@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BG Remover — Hapus Background</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        :root{--bg:#0d1117;--surface:#161b22;--border:#30363d;--accent:#7c5cfc;--accent-h:#6448e0;--text:#e6edf3;--muted:#8b949e;--success:#3fb950;--error:#f87171;--radius:12px}
+        body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+        .navbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between}
+        .navbar .logo{display:flex;align-items:center;gap:8px;font-weight:600;font-size:16px}
+        .navbar .logo-icon{width:28px;height:28px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px}
+        .navbar .user-info{display:flex;align-items:center;gap:12px}
+        .navbar .user-info span{font-size:13px;color:var(--muted)}
+        .btn-logout{background:transparent;border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer;transition:all .15s}
+        .btn-logout:hover{border-color:var(--error);color:var(--error)}
+        .container{max-width:900px;margin:0 auto;padding:32px 20px}
+        h1{font-size:28px;font-weight:700;margin-bottom:6px;letter-spacing:-.5px}
+        .subtitle{color:var(--muted);font-size:14px;margin-bottom:32px}
+        .upload-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:48px 24px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface)}
+        .upload-zone:hover,.upload-zone.dragover{border-color:var(--accent);background:#1a1a2e}
+        .upload-zone .icon{font-size:48px;margin-bottom:12px}
+        .upload-zone p{color:var(--muted);font-size:14px}
+        .upload-zone p span{color:var(--accent);text-decoration:underline}
+        .upload-zone .hint{font-size:12px;color:#484f58;margin-top:8px}
+        #fileInput{display:none}
+        .stats{display:flex;gap:16px;margin-top:16px;font-size:13px;color:var(--muted)}
+        .stats .stat{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 14px}
+        .gallery{margin-top:32px}
+        .gallery h2{font-size:18px;font-weight:600;margin-bottom:16px}
+        .file-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
+        .file-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:all .2s;position:relative}
+        .file-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+        .file-card .thumb{width:100%;height:180px;object-fit:cover;background:#0d1117;display:block}
+        .file-card .info{padding:12px}
+        .file-card .info .name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .file-card .info .status{font-size:12px;margin-top:4px;display:flex;align-items:center;gap:4px}
+        .file-card .info .status.pending{color:var(--muted)}
+        .file-card .info .status.done{color:var(--success)}
+        .file-card .info .status.error{color:var(--error)}
+        .file-card .actions{padding:0 12px 12px;display:flex;gap:8px;flex-wrap:wrap}
+        .btn{padding:7px 14px;border:none;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;font-family:inherit}
+        .btn-primary{background:var(--accent);color:white}
+        .btn-primary:hover{background:var(--accent-h)}
+        .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+        .btn-success{background:var(--success);color:white}
+        .btn-success:hover{opacity:.9}
+        .btn-danger{background:var(--error);color:white}
+        .btn-danger:hover{opacity:.9}
+        .btn-outline{background:transparent;border:1px solid var(--border);color:var(--muted)}
+        .btn-outline:hover{border-color:var(--text);color:var(--text)}
+        .btn-delete-card{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.7);border:none;color:var(--error);width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .15s;opacity:0}
+        .file-card:hover .btn-delete-card{opacity:1}
+        .btn-delete-card:hover{background:var(--error);color:white}
+        .batch-actions{margin-top:24px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+        .batch-actions .count{font-size:13px;color:var(--muted)}
+        .loading-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center}
+        .loading-overlay.active{display:flex}
+        .loading-box{background:var(--surface);border-radius:var(--radius);padding:32px;text-align:center}
+        .spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .toast{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 20px;font-size:13px;z-index:200;transform:translateY(100px);opacity:0;transition:all .3s}
+        .toast.show{transform:translateY(0);opacity:1}
+        .toast.error{border-color:var(--error);color:var(--error)}
+        .toast.success{border-color:var(--success);color:var(--success)}
+        .empty{text-align:center;padding:48px;color:var(--muted);font-size:14px}
+        .progress-bar{width:100%;height:4px;background:var(--border);border-radius:2px;margin-top:8px;overflow:hidden}
+        .progress-bar .fill{height:100%;background:var(--accent);border-radius:2px;transition:width .3s}
+        .info-banner{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px}
+        .info-banner .icon{font-size:16px}
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <div class="logo-icon">🎨</div>
+            <span>BG Remover</span>
+        </div>
+        <div class="user-info">
+            <span>ZANEVA Internal</span>
+            <button class="btn-logout" onclick="location.href='/logout'">Logout</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1>🎨 Hapus Background Foto</h1>
+        <p class="subtitle">Upload foto produk, hapus background secara otomatis. Max {{ max_files }} file, {{ max_mb }}MB per file.</p>
+
+        <div class="info-banner">
+            <span class="icon">ℹ️</span>
+            <span>File asli otomatis dihapus setelah berhasil diproses. Hasil PNG akan dihapus otomatis setelah 24 jam. Kamu juga bisa hapus manual kapan saja.</span>
+        </div>
+
+        <div class="upload-zone" id="uploadZone">
+            <div class="icon">📸</div>
+            <p>Drag & drop foto di sini, atau <span>pilih file</span></p>
+            <p class="hint">Support: JPG, JPEG, PNG, WEBP</p>
+        </div>
+        <input type="file" id="fileInput" multiple accept="image/*,.jpg,.jpeg,.png,.webp">
+
+        <div class="stats" id="stats" style="display:none">
+            <div class="stat">📁 Total: <strong id="totalCount">0</strong></div>
+            <div class="stat">✅ Selesai: <strong id="doneCount">0</strong></div>
+            <div class="stat">⏳ Pending: <strong id="pendingCount">0</strong></div>
+        </div>
+
+        <div class="gallery" id="gallery" style="display:none">
+            <h2>📸 File yang diupload</h2>
+            <div class="file-grid" id="fileGrid"></div>
+        </div>
+
+        <div class="batch-actions" id="batchActions" style="display:none">
+            <span class="count" id="batchCount">0 file siap didownload</span>
+            <button class="btn btn-success" onclick="downloadAll()">⬇ Download Semua (ZIP)</button>
+            <button class="btn btn-danger" onclick="clearAll()">🗑 Hapus Semua</button>
+            <button class="btn btn-outline" onclick="resetAll()">🔄 Upload Lagi</button>
+        </div>
+
+        <div class="empty" id="emptyState" style="display:none">
+            <p>Belum ada file yang diproses.</p>
+        </div>
+    </div>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-box">
+            <div class="spinner"></div>
+            <p id="loadingText">Mengupload file...</p>
+            <div class="progress-bar" id="progressBar" style="display:none">
+                <div class="fill" id="progressFill" style="width:0%"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileGrid = document.getElementById('fileGrid');
+        const gallery = document.getElementById('gallery');
+        const stats = document.getElementById('stats');
+        const batchActions = document.getElementById('batchActions');
+        const emptyState = document.getElementById('emptyState');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const loadingText = document.getElementById('loadingText');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+
+        let files = [];
+        let outputFiles = [];
+
+        uploadZone.addEventListener('click', () => fileInput.click());
+        uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+        uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+        uploadZone.addEventListener('drop', e => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+        });
+        fileInput.addEventListener('change', e => { if (e.target.files.length) handleFiles(e.target.files); });
+
+        async function handleFiles(fileList) {
+            showLoading('Mengupload file...');
+            const formData = new FormData();
+            for (let i = 0; i < fileList.length; i++) {
+                formData.append('photos', fileList[i]);
+            }
+            try {
+                const res = await fetch('/upload', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.error) throw new Error(data.error);
+                if (data.accepted.length) {
+                    for (const f of data.accepted) {
+                        files.push({ id: f.id, original: f.original, status: 'pending', outputId: null });
+                    }
+                    renderFiles();
+                    processAll();
+                }
+                if (data.rejected.length) {
+                    showToast(`${data.rejected.length} file ditolak: ${data.rejected.map(r => r.reason).join(', ')}`, 'error');
+                }
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+            hideLoading();
+        }
+
+        async function processAll() {
+            showLoading('Menghapus background...');
+            progressBar.style.display = 'block';
+            const pending = files.filter(f => f.status === 'pending');
+            let done = 0;
+            for (const f of pending) {
+                try {
+                    const res = await fetch(`/process/${f.id}`, { method: 'POST' });
+                    const data = await res.json();
+                    if (data.status === 'ok') {
+                        f.status = 'done';
+                        f.outputId = data.output_id;
+                        outputFiles.push(data.output_id);
+                    } else {
+                        f.status = 'error';
+                        f.error = data.error;
+                    }
+                } catch (err) {
+                    f.status = 'error';
+                    f.error = err.message;
+                }
+                done++;
+                progressFill.style.width = `${(done / pending.length) * 100}%`;
+                updateStats();
+                renderFiles();
+            }
+            hideLoading();
+            progressBar.style.display = 'none';
+            if (outputFiles.length) batchActions.style.display = 'flex';
+            document.getElementById('batchCount').textContent = `${outputFiles.length} file siap didownload`;
+        }
+
+        async function deleteFile(fileId, index) {
+            try {
+                const res = await fetch(`/delete/${fileId}`, { method: 'POST' });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    // Remove from arrays
+                    if (files[index].outputId) {
+                        outputFiles = outputFiles.filter(o => o !== files[index].outputId);
+                    }
+                    files.splice(index, 1);
+                    renderFiles();
+                    updateStats();
+                    showToast('File berhasil dihapus', 'success');
+                    if (outputFiles.length) {
+                        document.getElementById('batchCount').textContent = `${outputFiles.length} file siap didownload`;
+                    } else {
+                        batchActions.style.display = 'none';
+                    }
+                } else {
+                    showToast(data.error || 'Gagal hapus', 'error');
+                }
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        async function deleteOutput(outputId) {
+            try {
+                const res = await fetch(`/delete-output/${outputId}`, { method: 'POST' });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    outputFiles = outputFiles.filter(o => o !== outputId);
+                    const fileIndex = files.findIndex(f => f.outputId === outputId);
+                    if (fileIndex !== -1) {
+                        files[fileIndex].status = 'deleted';
+                        files[fileIndex].outputId = null;
+                    }
+                    renderFiles();
+                    updateStats();
+                    showToast('Hasil berhasil dihapus', 'success');
+                    if (outputFiles.length) {
+                        document.getElementById('batchCount').textContent = `${outputFiles.length} file siap didownload`;
+                    } else {
+                        batchActions.style.display = 'none';
+                    }
+                }
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        async function clearAll() {
+            if (!confirm('Hapus semua file? Ini tidak bisa dibatalkan.')) return;
+            try {
+                const res = await fetch('/clear-all', { method: 'POST' });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    files = [];
+                    outputFiles = [];
+                    fileGrid.innerHTML = '';
+                    gallery.style.display = 'none';
+                    stats.style.display = 'none';
+                    batchActions.style.display = 'none';
+                    emptyState.style.display = 'block';
+                    showToast(`${data.deleted_count} file dihapus`, 'success');
+                }
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        function renderFiles() {
+            if (!files.length) {
+                gallery.style.display = 'none';
+                emptyState.style.display = 'block';
+                return;
+            }
+            emptyState.style.display = 'none';
+            gallery.style.display = 'block';
+            fileGrid.innerHTML = '';
+            for (let i = 0; i < files.length; i++) {
+                const f = files[i];
+                const card = document.createElement('div');
+                card.className = 'file-card';
+                const statusClass = f.status === 'done' ? 'done' : f.status === 'error' ? 'error' : 'pending';
+                const statusText = f.status === 'done' ? '✅ Selesai' : f.status === 'error' ? '❌ Error' : f.status === 'deleted' ? '🗑 Dihapus' : '⏳ Menunggu...';
+                const imgSrc = f.status === 'done' && f.outputId ? `/preview/${f.outputId}` : `/preview-input/${f.id}`;
+                card.innerHTML = `
+                    <button class="btn-delete-card" onclick="deleteFile('${f.id}', ${i})" title="Hapus file">×</button>
+                    <img class="thumb" src="${imgSrc}" alt="${f.original}" onerror="this.style.display='none'">
+                    <div class="info">
+                        <div class="name" title="${f.original}">${f.original}</div>
+                        <div class="status ${statusClass}">${statusText}</div>
+                    </div>
+                    ${f.status === 'done' && f.outputId ? `
+                    <div class="actions">
+                        <button class="btn btn-primary" onclick="window.open('/preview/${f.outputId}','_blank')">👁 Preview</button>
+                        <button class="btn btn-success" onclick="location.href='/download/${f.outputId}'">⬇ Download</button>
+                        <button class="btn btn-danger" onclick="deleteOutput('${f.outputId}')">🗑</button>
+                    </div>` : ''}
+                `;
+                fileGrid.appendChild(card);
+            }
+        }
+
+        function updateStats() {
+            stats.style.display = 'flex';
+            document.getElementById('totalCount').textContent = files.length;
+            document.getElementById('doneCount').textContent = files.filter(f => f.status === 'done').length;
+            document.getElementById('pendingCount').textContent = files.filter(f => f.status === 'pending').length;
+        }
+
+        async function downloadAll() {
+            if (!outputFiles.length) return;
+            try {
+                const res = await fetch('/download-all', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ output_ids: outputFiles })
+                });
+                if (!res.ok) throw new Error('Download gagal');
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'zaneva_nobg.zip';
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        async function resetAll() {
+            try { await fetch('/reset', { method: 'POST' }); } catch {}
+            files = [];
+            outputFiles = [];
+            fileGrid.innerHTML = '';
+            gallery.style.display = 'none';
+            stats.style.display = 'none';
+            batchActions.style.display = 'none';
+            emptyState.style.display = 'none';
+            fileInput.value = '';
+            uploadZone.style.display = 'block';
+        }
+
+        function showLoading(text) {
+            loadingText.textContent = text;
+            loadingOverlay.classList.add('active');
+        }
+        function hideLoading() { loadingOverlay.classList.remove('active'); }
+
+        function showToast(msg, type = '') {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = `toast show ${type}`;
+            setTimeout(() => toast.className = 'toast', 3000);
+        }
+    </script>
+</body>
+</html>

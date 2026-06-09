@@ -2,9 +2,12 @@ import os
 import uuid
 import zipfile
 import shutil
+import threading
+import time
 from io import BytesIO
 from pathlib import Path
 from functools import wraps
+from datetime import datetime
 
 from flask import (
     Flask, request, session, redirect, url_for,
@@ -16,7 +19,7 @@ from rembg import remove, new_session
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "changeme-set-in-env")
 
-APP_PASSWORD = os.environ.get("APP_PASSWORD", "zaneva2024")
+APP_PASSWORD = os.environ.get("APP_PASSWORD", "100Jtperhari@@")
 REMBG_MODEL = os.environ.get("REMBG_MODEL", "birefnet-portrait")
 MAX_FILES = int(os.environ.get("MAX_FILES", 20))
 MAX_FILE_MB = int(os.environ.get("MAX_FILE_SIZE_MB", 10))
@@ -29,6 +32,27 @@ TMP_BASE.mkdir(exist_ok=True)
 print(f"[BG Remover] Loading model: {REMBG_MODEL} ...")
 rembg_session = new_session(REMBG_MODEL)
 print(f"[BG Remover] Model ready.")
+
+# ─── Auto-cleanup H+1 (hapus file > 24 jam) ───
+def auto_cleanup():
+    while True:
+        try:
+            now = time.time()
+            for session_dir in TMP_BASE.iterdir():
+                if not session_dir.is_dir():
+                    continue
+                # Check if session older than 24 hours
+                dir_age = now - session_dir.stat().st_mtime
+                if dir_age > 86400:  # 24 hours
+                    shutil.rmtree(session_dir, ignore_errors=True)
+                    print(f"[Cleanup] Removed old session: {session_dir.name} (age: {dir_age/3600:.1f}h)")
+        except Exception as e:
+            print(f"[Cleanup] Error: {e}")
+        time.sleep(3600)  # Check every hour
+
+cleanup_thread = threading.Thread(target=auto_cleanup, daemon=True)
+cleanup_thread.start()
+print("[BG Remover] Auto-cleanup thread started (H+1).")
 
 def login_required(f):
     @wraps(f)
@@ -112,9 +136,54 @@ def process(file_id):
         img = Image.open(in_path).convert("RGBA")
         result = remove(img, session=rembg_session)
         result.save(out_path, format="PNG")
+        # Auto-delete source file after successful processing
+        in_path.unlink(missing_ok=True)
+        print(f"[BG Remover] Processed & deleted source: {in_path.name}")
         return jsonify({"output_id": out_name, "status": "ok"})
     except Exception as e:
         return jsonify({"error": str(e), "status": "error"}), 500
+
+@app.route("/delete/<file_id>", methods=["POST"])
+@login_required
+def delete_file(file_id):
+    """Delete a specific file (input or output)"""
+    work = get_work_dir()
+    deleted = []
+    # Try delete from input
+    for p in (work / "input").glob(f"{file_id}.*"):
+        p.unlink(missing_ok=True)
+        deleted.append(str(p.name))
+    # Try delete from output
+    out_id = file_id.replace(".", "_nobg.")
+    for p in (work / "output").glob(f"{file_id}*"):
+        p.unlink(missing_ok=True)
+        deleted.append(str(p.name))
+    if deleted:
+        return jsonify({"status": "ok", "deleted": deleted})
+    return jsonify({"error": "File tidak ditemukan."}), 404
+
+@app.route("/delete-output/<output_id>", methods=["POST"])
+@login_required
+def delete_output(output_id):
+    """Delete a processed output file"""
+    work = get_work_dir()
+    out_path = work / "output" / output_id
+    if out_path.exists():
+        out_path.unlink()
+        return jsonify({"status": "ok", "deleted": output_id})
+    return jsonify({"error": "File tidak ditemukan."}), 404
+
+@app.route("/clear-all", methods=["POST"])
+@login_required
+def clear_all():
+    """Delete all files in current session"""
+    work = get_work_dir()
+    count = 0
+    for folder in ["input", "output"]:
+        for p in (work / folder).iterdir():
+            p.unlink(missing_ok=True)
+            count += 1
+    return jsonify({"status": "ok", "deleted_count": count})
 
 @app.route("/preview/<output_id>")
 @login_required
