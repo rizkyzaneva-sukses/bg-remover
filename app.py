@@ -4,6 +4,8 @@ import zipfile
 import shutil
 import threading
 import time
+import numpy as np
+import cv2
 from io import BytesIO
 from pathlib import Path
 from functools import wraps
@@ -74,6 +76,44 @@ def get_work_dir():
     (work / "output").mkdir(exist_ok=True)
     return work
 
+def remove_shadow(result_img):
+    """Remove residual shadow from background-removed image."""
+    result_np = np.array(result_img)
+    if result_np.shape[2] != 4:
+        return result_img
+
+    alpha = result_np[:, :, 3]
+    rgb = result_np[:, :, :3]
+
+    # 1. Pixels that are semi-transparent (likely shadow edges)
+    shadow_edge = (alpha > 0) & (alpha < 30)
+
+    # 2. Dark semi-transparent pixels (cast shadow on ground)
+    gray = np.mean(rgb, axis=2)
+    dark_shadow = (alpha > 0) & (alpha < 100) & (gray < 100)
+
+    # 3. Very faint transparent pixels (light shadow)
+    faint_shadow = (alpha > 0) & (alpha < 15)
+
+    # Combine all shadow masks
+    shadow_mask = shadow_edge | dark_shadow | faint_shadow
+
+    # Dilate to catch shadow edges that are slightly more opaque
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    shadow_mask = cv2.dilate(shadow_mask.astype(np.uint8), kernel, iterations=2).astype(bool)
+
+    # But protect the main subject (high alpha pixels) from being removed
+    # Create a protection mask from fully opaque pixels
+    subject_mask = alpha > 200
+    subject_dilated = cv2.dilate(subject_mask.astype(np.uint8), kernel, iterations=10).astype(bool)
+
+    # Only remove shadow pixels that are NOT near the main subject
+    safe_to_remove = shadow_mask & ~subject_dilated
+
+    result_np[safe_to_remove, 3] = 0
+
+    return Image.fromarray(result_np)
+
 @app.route("/", methods=["GET"])
 @login_required
 def index():
@@ -135,6 +175,10 @@ def process(file_id):
     try:
         img = Image.open(in_path).convert("RGBA")
         result = remove(img, session=rembg_session)
+
+        # Post-process: remove residual shadow
+        result = remove_shadow(result)
+
         result.save(out_path, format="PNG")
         # Auto-delete source file after successful processing
         in_path.unlink(missing_ok=True)
